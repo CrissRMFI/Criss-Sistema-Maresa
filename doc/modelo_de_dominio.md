@@ -2,101 +2,64 @@
 
 ## Sistema de Gestión Comercial y Operativa para Negocio de Bebidas y Mercadería
 
-**Versión:** 1.0  
-**Estado:** Borrador de trabajo  
-**Tipo de documento:** Documento vivo de análisis y diseño  
-**Relacionado con:** [especificaciones](especificaciones:md)
+**Versión:** 1.1
+**Estado:** Documento vivo de análisis y diseño
+**Plataforma:** Aplicación web (Node.js) con backend central.
+**Relacionado con:** [especificaciones](especificaciones:md), [backlog](backlog.md), [historias_de_usuario](historias_de_usuario.md)
 
 ---
 
 ## 1. Propósito del documento
 
-Este documento define el modelo de dominio inicial del sistema. Su objetivo es describir las entidades principales del negocio, sus relaciones, responsabilidades y reglas de consistencia, de modo que sirva como base para el diseño de base de datos, backend, casos de uso e interfaces.
-
-Este documento no describe pantallas ni detalles técnicos de implementación. Describe el negocio y cómo se estructura conceptualmente dentro del sistema.
+Este documento define el modelo de dominio del sistema: entidades, relaciones, responsabilidades y reglas de consistencia, como base para el diseño de base de datos, backend, casos de uso e interfaces. No describe pantallas ni detalles técnicos de implementación.
 
 ---
 
 ## 2. Alcance del modelo
 
-El modelo de dominio cubre la operación interna inicial del negocio, incluyendo:
+Cubre la operación interna del negocio:
 
-- productos
-- costos y precios
+- productos, costos, precios y listas de precios
 - clientes, proveedores y terceros
-- stock por ubicación
+- stock por ubicación y depósito Móvil
+- lotes de costo y movimientos de stock (con resolución de costo pendiente)
 - compras, recepciones y pagos
-- ventas, entregas y cobros
-- deuda de mercadería
+- ventas, entrega total y cobros (con utilidad pendiente de cálculo)
 - deuda de cajas retornables
-- cuentas financieras
-- fondos separados
-- gastos
-- cierres de caja
-- auditoría de operaciones
+- cuentas financieras, fondos separados, gastos y cierres de caja
+- usuarios, roles y auditoría
 
-Quedan fuera de este modelo inicial:
+Quedan fuera del MVP:
 
 - integración AFIP/ARCA
-- permisos refinados por rol
 - modo offline con sincronización
 - aplicación móvil
+- **deuda de mercadería** (todo lo facturado se entrega; no se factura sin stock en Móvil)
 
 ---
 
 ## 3. Visión general del dominio
 
-El dominio del sistema se organiza en seis áreas principales:
+Áreas principales:
 
-1. **Catálogo comercial**  
-   Define qué productos existen, cómo se identifican, qué costos tienen y qué precios pueden sugerirse.
-
-2. **Relaciones comerciales**  
-   Define con quién opera el negocio: clientes, proveedores, terceros y depósitos externos.
-
-3. **Stock y logística**  
-   Define dónde está la mercadería, cómo se mueve, qué queda pendiente de entregar y cómo se controlan las cajas retornables.
-
-4. **Compras**  
-   Define cómo se registran compras, recepciones de mercadería, pagos y deudas con proveedores.
-
-5. **Ventas**  
-   Define cómo se registran ventas, entregas físicas, cobros y saldos pendientes.
-
-6. **Dinero y control interno**  
-   Define cuentas financieras, gastos, fondos separados, cierres de caja y trazabilidad.
+1. **Catálogo comercial** — productos, costos, precios y listas.
+2. **Relaciones comerciales** — clientes, proveedores, terceros y depósitos externos.
+3. **Stock y logística** — ubicaciones (incluido el depósito Móvil), lotes de costo, movimientos y cajas retornables.
+4. **Compras** — compras, recepciones, pagos y deudas con proveedores.
+5. **Ventas** — ventas, entrega total, cobros y utilidad.
+6. **Dinero y control interno** — cuentas, gastos, fondos separados y cierres.
+7. **Seguridad y trazabilidad** — usuarios, roles, permisos y auditoría.
 
 ---
 
 ## 4. Principios de modelado adoptados
 
-### 4.1 No borrar, siempre auditar
-
-El sistema no debe eliminar físicamente movimientos operativos. Toda anulación o reversión debe quedar registrada y auditada.
-
-### 4.2 Separar operación comercial de operación física
-
-Una venta no equivale automáticamente a una entrega.  
-Una compra no equivale automáticamente a una recepción.  
-Un cobro o pago tampoco equivale automáticamente al cierre de una operación.
-
-### 4.3 Separar tipos de deuda
-
-El negocio puede registrar deuda en:
-
-- dinero
-- mercadería
-- cajas retornables
-
-Estas deudas no deben mezclarse en una única estructura genérica.
-
-### 4.4 Mantener historial
-
-Costos, precios, movimientos y anulaciones deben conservar historial.
-
-### 4.5 Priorizar consistencia operativa
-
-La consistencia del negocio es más importante que la flexibilidad técnica. El sistema debe evitar mezclar estados ambiguos o resolver con observaciones lo que requiere una entidad o relación explícita.
+- **4.1 No borrar, siempre auditar.** No se eliminan físicamente movimientos; toda anulación/reversión queda auditada.
+- **4.2 Separar operación comercial de operación física.** Una compra no equivale a una recepción; un cobro/pago no equivale al cierre.
+- **4.3 Separar tipos de deuda.** El negocio registra deuda en dinero y en cajas (no en mercadería en el MVP). No se mezclan en una estructura genérica.
+- **4.4 Mantener historial.** Costos, precios, movimientos y anulaciones conservan historial.
+- **4.5 Priorizar consistencia operativa.** Se prefiere una entidad/relación explícita antes que resolver con observaciones de texto libre.
+- **4.6 Costos por lote y visibilidad por rol.** El costo del stock se maneja por lotes; el Empleado mueve cantidades sin ver costos, y Administrador/Dueño resuelven costos y utilidad.
 
 ---
 
@@ -108,105 +71,49 @@ La consistencia del negocio es más importante que la flexibilidad técnica. El 
 
 ## 5.1.1 Producto
 
-### Descripción
+Artículo comercializable o controlable por stock.
 
-Representa un artículo comercializable o controlable por stock dentro del negocio.
+**Atributos principales:** `id`, `nombre`, `marca`, `presentacion`, `unidadVenta`, `factorEmpaque` (opcional, ej. 1 cajón = N unidades), `activo`, `usaCajaRetornable`, `cantidadPorCaja` (opcional), `esCajaRetornable` (marca el producto especial "caja").
 
-### Responsabilidades
+**Reglas:**
+- se identifica por nombre, marca y presentación
+- puede quedar inactivo sin borrarse
+- puede tener múltiples costos (vía lotes) y múltiples precios
+- la compra puede registrarse por pack (factor de empaque) y el stock se lleva en unidad de venta
+- la **caja retornable** se modela como un producto especial **sin costo**
 
-- identificar un artículo del negocio
-- almacenar su información básica
-- indicar si se encuentra activo o inactivo
-- permitir asociar costos y precios históricos
-- indicar si usa cajas retornables
+## 5.1.2 CostoProducto / Lote
 
-### Atributos principales
+Costo histórico de un producto, asociado a un lote de ingreso.
 
-- `id`
-- `nombre`
-- `marca`
-- `presentacion`
-- `unidadBase`
-- `activo`
-- `usaCajaRetornable`
-- `cantidadPorCaja` (opcional)
+**Atributos principales:** `id`, `productoId`, `fechaHora`, `costoUnitario`, `cantidadIngresada`, `origen` (compra/alta manual), `recepcionCompraId` (opcional), `observacion`.
 
-### Reglas asociadas
-
-- un producto se identifica operativamente por nombre, marca y presentación
-- un producto puede quedar inactivo sin borrarse
-- un producto puede tener múltiples costos históricos
-- un producto puede tener múltiples precios históricos o vigentes
-
-### Observaciones
-
-No se recomienda guardar el “precio actual” o el “costo actual” directamente en la entidad Producto como única fuente de verdad. Es preferible mantener historial separado.
-
----
-
-## 5.1.2 CostoProducto
-
-### Descripción
-
-Representa un costo histórico registrado para un producto.
-
-### Responsabilidades
-
-- conservar historial de costos
-- permitir seleccionar un costo al momento de vender
-- servir de base para reportes de utilidad
-- permitir cálculo de promedio simple de costos
-
-### Atributos principales
-
-- `id`
-- `productoId`
-- `fechaHora`
-- `costoUnitario`
-- `origen`
-- `observacion`
-
-### Reglas asociadas
-
-- puede haber múltiples costos para un mismo producto incluso el mismo día
-- el usuario puede elegir desde qué costo vender
-- el sistema debe poder consultar promedio simple de costos por producto
-
-### Observaciones
-
-El costo histórico debe quedar asociado a operaciones de compra o alta manual cuando corresponda.
-
----
+**Reglas:**
+- cada recepción de compra genera un lote con su costo
+- puede haber múltiples costos para un mismo producto, incluso el mismo día
+- el sistema consulta promedio simple de costos y permite fijarlo como referencia (Administrador/Dueño)
+- el costo es visible solo para Administrador y Dueño
 
 ## 5.1.3 PrecioProducto
 
-### Descripción
+Precio sugerido/vigente para la venta, dentro de una lista de precios.
 
-Representa un precio sugerido o vigente para la venta de un producto.
+**Atributos principales:** `id`, `productoId`, `listaPreciosId`, `valor`, `fechaDesde`, `activo`.
 
-### Responsabilidades
+**Reglas:**
+- el sistema sugiere el precio vigente de la lista del cliente
+- el usuario puede modificar el precio sugerido al vender
+- actualizar un precio afecta sugerencias futuras, no ventas históricas
 
-- mantener historial de precios
-- sugerir precio de venta vigente
-- permitir diferentes precios según contexto comercial
-- no reescribir operaciones pasadas
+## 5.1.4 ListaPrecios
 
-### Atributos principales
+Conjunto de precios para un segmento comercial (minorista, mayorista, etc.).
 
-- `id`
-- `productoId`
-- `valor`
-- `tipoPrecio`
-- `entidadComercialId` (opcional)
-- `fechaDesde`
-- `activo`
+**Atributos principales:** `id`, `nombre`, `activa`.
 
-### Reglas asociadas
-
-- el sistema debe sugerir un precio vigente
-- el usuario puede modificar manualmente el precio sugerido al vender
-- actualizar un precio afecta sugerencias futuras
-- cambiar un precio no modifica ventas históricas
+**Reglas:**
+- una lista agrupa precios de productos
+- un cliente referencia una lista; el precio sugerido proviene de esa lista
 
 ---
 
@@ -214,76 +121,22 @@ Representa un precio sugerido o vigente para la venta de un producto.
 
 ## 5.2.1 EntidadComercial
 
-### Descripción
+Cualquier contraparte: cliente, proveedor o tercero.
 
-Representa cualquier persona, cliente, proveedor o tercero con quien opera el negocio.
+**Atributos principales:** `id`, `nombre`, `telefono`, `activo`, `limiteCredito`, `listaPreciosId` (opcional), `observaciones`.
 
-### Responsabilidades
-
-- identificar a una contraparte comercial
-- registrar información básica y contacto
-- permitir múltiples roles simultáneos
-- servir como referencia para deudas, compras, ventas y movimientos
-
-### Atributos principales
-
-- `id`
-- `nombre`
-- `telefono`
-- `activo`
-- `limiteCredito`
-- `observaciones`
-
-### Reglas asociadas
-
-- una misma entidad puede ser cliente, proveedor, tercero o depósito externo
-- una entidad puede tener deuda monetaria, de mercadería y de cajas
-- una entidad puede tener varios domicilios
-
-### Observaciones
-
-Se modela como entidad única con múltiples roles para evitar duplicación conceptual y problemas cuando una misma contraparte cumple varias funciones.
-
----
+**Reglas:**
+- una misma entidad puede ser cliente, proveedor, tercero o depósito externo (múltiples roles)
+- puede tener deuda monetaria y deuda de cajas (no de mercadería)
+- puede tener varios domicilios
 
 ## 5.2.2 RolEntidad
 
-### Descripción
-
-Representa el rol o conjunto de roles que una entidad comercial puede cumplir dentro del sistema.
-
-### Valores iniciales posibles
-
-- `CLIENTE`
-- `PROVEEDOR`
-- `TERCERO`
-- `DEPOSITO_EXTERNO`
-
-### Reglas asociadas
-
-- una entidad puede tener uno o más roles
-- los roles ayudan a clasificar, no a duplicar entidades
-
----
+Rol(es) que cumple una entidad: `CLIENTE`, `PROVEEDOR`, `TERCERO`, `DEPOSITO_EXTERNO`. Una entidad puede tener uno o más; los roles clasifican, no duplican.
 
 ## 5.2.3 Domicilio
 
-### Descripción
-
-Representa una dirección asociada a una entidad comercial.
-
-### Responsabilidades
-
-- permitir registrar múltiples domicilios
-- facilitar entregas, contacto y trazabilidad operativa
-
-### Atributos principales
-
-- `id`
-- `entidadComercialId`
-- `direccion`
-- `descripcion`
-- `activo`
+Dirección asociada a una entidad. **Atributos:** `id`, `entidadComercialId`, `direccion`, `descripcion`, `activo`.
 
 ---
 
@@ -291,177 +144,46 @@ Representa una dirección asociada a una entidad comercial.
 
 ## 5.3.1 UbicacionStock
 
-### Descripción
+Lugar físico o lógico donde está la mercadería o las cajas.
 
-Representa un lugar físico o lógico donde puede encontrarse mercadería o cajas.
+**Atributos principales:** `id`, `nombre`, `tipo` (`LOCAL`, `DEPOSITO`, `CONSIGNACION`, `DEPOSITO_EXTERNO`, `MOVIL`), `activa`.
 
-### Ejemplos
-
-- local
-- depósito principal
-- consignación
-- depósito externo
-- otra ubicación definida por el negocio
-
-### Responsabilidades
-
-- clasificar dónde se encuentra la mercadería
-- permitir stock separado por ubicación
-- facilitar movimientos y reportes
-
-### Atributos principales
-
-- `id`
-- `nombre`
-- `tipo`
-- `activa`
-
----
+**Reglas:**
+- el depósito **Móvil** es la **única fuente de ventas/entregas**
+- no se puede facturar un producto sin stock en Móvil
 
 ## 5.3.2 ExistenciaStock
 
-### Descripción
-
-Representa la cantidad actual de un producto en una ubicación dada.
-
-### Responsabilidades
-
-- mostrar stock actual por ubicación
-- servir como resultado acumulado de movimientos válidos
-
-### Atributos principales
-
-- `productoId`
-- `ubicacionId`
-- `cantidadActual`
-
-### Observaciones
-
-Conceptualmente existe como agregado del sistema, aunque técnicamente puede calcularse desde movimientos o persistirse como resumen optimizado.
-
----
+Cantidad actual de un producto en una ubicación. **Atributos:** `productoId`, `ubicacionId`, `cantidadActual`. Puede calcularse desde movimientos o persistirse como resumen.
 
 ## 5.3.3 MovimientoStock
 
-### Descripción
+Cualquier variación de stock de mercadería (incluye cajas, como producto especial).
 
-Representa cualquier variación de stock de mercadería.
+**Tipos:** compra recibida, venta entregada, ajuste manual, traslado salida, traslado entrada, devolución, consignación entrega, consignación devolución, anulación/reversión.
 
-### Responsabilidades
+**Atributos principales:** `id`, `fechaHora`, `tipo`, `productoId`, `ubicacionOrigenId` (opcional), `ubicacionDestinoId` (opcional), `cantidad`, `loteId` (opcional), `estadoCosto` (`FINALIZADO` / `PENDIENTE_COSTO`), `referenciaTipo`, `referenciaId`, `usuarioId`, `observacion`.
 
-- registrar entradas y salidas
-- vincular cambios de stock con operaciones del negocio
-- servir como base de trazabilidad e inventario
-
-### Tipos iniciales
-
-- compra recibida
-- venta entregada
-- ajuste manual
-- traslado salida
-- traslado entrada
-- devolución
-- consignación entrega
-- consignación devolución
-- anulación o reversión
-
-### Atributos principales
-
-- `id`
-- `fechaHora`
-- `tipo`
-- `productoId`
-- `ubicacionOrigenId` (opcional)
-- `ubicacionDestinoId` (opcional)
-- `cantidad`
-- `referenciaTipo`
-- `referenciaId`
-- `usuarioId`
-- `observacion`
-
-### Reglas asociadas
-
-- el stock solo cambia por movimientos válidos
-- toda variación de stock debe quedar auditada
-- una venta no descuenta stock por lo no entregado
+**Reglas:**
+- el stock solo cambia por movimientos válidos y toda variación queda auditada
 - una compra no aumenta stock por lo no recibido
+- una venta no descuenta stock por lo no entregado
+- **costeo por lote en traslados:** si el producto movido tiene un único lote/costo, el movimiento se finaliza automáticamente (`FINALIZADO`); si tiene más de uno, la cantidad se mueve pero el movimiento queda `PENDIENTE_COSTO` hasta que Administrador/Dueño asignen el lote
+- el Empleado mueve cantidades sin ver ni elegir costos
 
----
+## 5.3.4 CajaRetornable y DeudaCajas
 
-## 5.3.4 DeudaMercaderia
+La caja retornable se controla como **producto especial sin costo** (ver 5.1.1). Su stock global del negocio = cajas presentes + cajas en poder de terceros.
 
-### Descripción
+**DeudaCajas** — cajas que una entidad debe al negocio.
+**Atributos:** `id`, `entidadComercialId`, `cantidadAdeudada`, `estado` (`ABIERTA`/`PARCIAL`/`SALDADA`), `fechaOrigen`.
 
-Representa mercadería pendiente de entregar a un cliente luego de una venta cerrada.
+**Reglas:**
+- importa saber **quién tiene cuántas** y **cuántas hay en total**
+- la deuda de cajas se gestiona y se consulta separada del dinero
+- la deuda de cajas integra el saldo de arrastre del cliente
 
-### Responsabilidades
-
-- registrar cantidades pendientes por cliente
-- permitir consulta de pendientes de entrega
-- permitir saldar deuda de mercadería con entregas posteriores
-
-### Atributos principales
-
-- `id`
-- `ventaId`
-- `clienteId`
-- `productoId`
-- `cantidadPendiente`
-- `estado`
-- `fechaOrigen`
-
-### Reglas asociadas
-
-- una venta puede cerrarse aunque no se entregue todo
-- la deuda de mercadería debe quedar visible en un listado específico
-- la deuda se salda con una entrega posterior
-- lo pendiente no sale de stock hasta que se entrega
-
----
-
-## 5.3.5 CajaRetornable
-
-### Descripción
-
-Representa el control de cajas retornables del negocio.
-
-### Observación importante
-
-En la etapa inicial todas las cajas retornables se consideran del mismo tipo.
-
-### Responsabilidades
-
-- controlar stock físico de cajas
-- registrar deuda de cajas de terceros
-- reflejar el stock total considerando cajas presentes y cajas adeudadas
-
----
-
-## 5.3.6 DeudaCajas
-
-### Descripción
-
-Representa la cantidad de cajas retornables que una entidad comercial debe al negocio.
-
-### Responsabilidades
-
-- registrar deuda de cajas por entidad
-- permitir conciliación en conteos y reportes
-- mostrar deuda separada de dinero y mercadería
-
-### Atributos principales
-
-- `id`
-- `entidadComercialId`
-- `cantidadAdeudada`
-- `estado`
-- `fechaOrigen`
-
-### Reglas asociadas
-
-- las cajas forman parte del stock total del negocio
-- si no están físicamente presentes, deben reflejarse como deuda de cajas de terceros
-- la deuda de cajas se consulta en forma separada
+> **Nota:** la entidad `DeudaMercaderia` del modelo anterior fue **eliminada** del MVP (todo lo facturado se entrega).
 
 ---
 
@@ -469,107 +191,24 @@ Representa la cantidad de cajas retornables que una entidad comercial debe al ne
 
 ## 5.4.1 Compra
 
-### Descripción
-
-Representa el acuerdo comercial de compra con un proveedor o tercero.
-
-### Responsabilidades
-
-- registrar intención y detalle de compra
-- separar la compra de la recepción física
-- separar la compra del pago
-- permitir deuda con proveedor
-
-### Atributos principales
-
-- `id`
-- `proveedorId`
-- `fecha`
-- `estado`
-- `observaciones`
-
-### Reglas asociadas
-
-- compra, recepción y pago son eventos independientes
-- una compra puede estar pagada y no recibida
-- una compra puede estar recibida y no pagada
-- una compra puede recibirse parcialmente
-
----
+Acuerdo comercial de compra con un proveedor.
+**Atributos:** `id`, `proveedorId`, `fecha`, `estado` (registrada, pendiente de retiro, recibida parcial/total, pagada parcial/total, anulada), `observaciones`.
+**Reglas:** compra, recepción y pago son independientes; puede estar pagada y no recibida, o recibida y no pagada, o recibirse parcialmente.
 
 ## 5.4.2 ItemCompra
 
-### Descripción
-
-Representa una línea de producto dentro de una compra.
-
-### Responsabilidades
-
-- indicar qué producto se compra
-- registrar cantidades y costos
-- controlar cantidades recibidas y dañadas
-
-### Atributos principales
-
-- `id`
-- `compraId`
-- `productoId`
-- `cantidadPactada`
-- `costoUnitario`
-- `cantidadRecibida`
-- `cantidadDanada`
-
----
+Línea de producto de una compra. **Atributos:** `id`, `compraId`, `productoId`, `cantidadPactada`, `costoUnitario`, `cantidadRecibida`.
 
 ## 5.4.3 RecepcionCompra
 
-### Descripción
-
-Representa un evento de retiro o recepción real de mercadería asociada a una compra.
-
-### Responsabilidades
-
-- registrar cuándo y cuánto se recibió
-- aumentar stock únicamente por lo efectivamente recibido
-- dejar pendiente lo no recibido
-
-### Atributos principales
-
-- `id`
-- `compraId`
-- `fecha`
-- `usuarioId`
-- `observacion`
-
-### Reglas asociadas
-
-- una compra no incrementa stock hasta la recepción
-- si la recepción es parcial, el resto queda pendiente de retiro
-
----
+Retiro/recepción real de mercadería; genera el lote de costo.
+**Atributos:** `id`, `compraId`, `fecha`, `usuarioId`, `observacion`.
+**Reglas:** aumenta stock solo por lo recibido; lo no recibido queda pendiente.
 
 ## 5.4.4 PagoCompra
 
-### Descripción
-
-Representa un pago asociado a una compra o a una deuda con proveedor.
-
-### Responsabilidades
-
-- registrar pagos parciales o totales
-- asociar pagos con cuentas financieras
-- reflejar deuda monetaria pendiente con proveedor
-
-### Atributos principales
-
-- `id`
-- `compraId` (opcional)
-- `proveedorId`
-- `fecha`
-- `importe`
-- `cuentaFinancieraId`
-- `medioPago`
-- `observacion`
+Pago asociado a una compra o a deuda con proveedor.
+**Atributos:** `id`, `compraId` (opcional), `proveedorId`, `fecha`, `importe`, `cuentaFinancieraId`, `medioPago`, `observacion`.
 
 ---
 
@@ -577,146 +216,39 @@ Representa un pago asociado a una compra o a una deuda con proveedor.
 
 ## 5.5.1 Venta
 
-### Descripción
+Operación comercial interna de venta. La entrega es **total** al cerrar.
 
-Representa una operación comercial interna de venta.
+**Atributos principales:** `id`, `clienteId`, `fecha`, `estado`, `totalBruto`, `totalCobrado`, `estadoUtilidad` (`PENDIENTE_CALCULO` / `CALCULADA`), `utilidad` (opcional), `usuarioId`, `observaciones`.
 
-### Responsabilidades
+**Estados:** `BORRADOR`, `CERRADA`, `ENTREGADA`, `ANULADA`, `EN_CONSIGNACION`.
 
-- registrar la operación comercial
-- vincular cliente, productos, totales y cobros
-- distinguir entre cierre comercial y entrega física
-- soportar anulación auditada
-
-### Atributos principales
-
-- `id`
-- `clienteId`
-- `fecha`
-- `estado`
-- `totalBruto`
-- `totalCobrado`
-- `observaciones`
-
-### Estados previstos
-
-- `BORRADOR`
-- `CERRADA`
-- `ENTREGADA_PARCIAL`
-- `ENTREGADA_COMPLETA`
-- `ANULADA`
-- `EN_CONSIGNACION`
-- `LIQUIDADA_PARCIAL`
-- `LIQUIDADA_COMPLETA`
-
-### Reglas asociadas
-
-- una venta puede pagarse con múltiples medios
-- una venta puede cerrarse aunque exista mercadería pendiente
-- una venta anulada debe revertir efectos y dejar auditoría
-
----
+**Reglas:**
+- no se puede facturar sin stock del producto en Móvil
+- puede pagarse con múltiples medios
+- al facturar, la utilidad queda `PENDIENTE_CALCULO`; Administrador/Dueño la resuelven especificando el costo (notificación)
+- la utilidad se computa como **venta − costo** (vista única)
+- una venta anulada revierte stock, cobros, deuda y utilidad, dejando auditoría
+- el Empleado puede registrar la venta y su cobro, pero no resuelve utilidad ni ve saldos
 
 ## 5.5.2 ItemVenta
 
-### Descripción
-
-Representa una línea de producto dentro de una venta.
-
-### Responsabilidades
-
-- registrar qué producto se vendió
-- conservar el precio de venta aplicado
-- conservar el costo elegido al momento de vender
-- permitir cálculo de utilidad
-
-### Atributos principales
-
-- `id`
-- `ventaId`
-- `productoId`
-- `cantidadVendida`
-- `precioUnitario`
-- `costoElegidoId` (opcional)
-- `cantidadEntregadaAcumulada`
-- `utilidadCalculadaCerrada`
-
-### Reglas asociadas
-
-- el precio y costo usados en la venta deben quedar congelados como snapshot histórico
-- no deben recalcularse automáticamente por cambios posteriores de catálogo
-
----
+Línea de producto vendida. **Atributos:** `id`, `ventaId`, `productoId`, `cantidad`, `precioUnitario` (snapshot), `costoAsignadoId` (opcional, al resolver utilidad), `utilidadCalculada` (opcional).
+**Reglas:** el precio aplicado queda congelado (snapshot); no se recalcula por cambios de catálogo.
 
 ## 5.5.3 EntregaVenta
 
-### Descripción
-
-Representa una entrega física parcial o total asociada a una venta.
-
-### Responsabilidades
-
-- registrar qué se entregó realmente
-- descontar stock solo por lo entregado
-- vincular entregas posteriores a la venta original
-
-### Atributos principales
-
-- `id`
-- `ventaId`
-- `fecha`
-- `usuarioId`
-- `observacion`
-
-### Reglas asociadas
-
-- el stock baja solo por lo efectivamente entregado
-- una venta puede requerir una o más entregas
-
----
+Entrega física (total) asociada a la venta; descuenta stock de Móvil.
+**Atributos:** `id`, `ventaId`, `fecha`, `usuarioId`, `observacion`.
 
 ## 5.5.4 CobroVenta
 
-### Descripción
-
-Representa un cobro asociado a una venta o a un saldo de arrastre del cliente.
-
-### Responsabilidades
-
-- registrar cobros parciales o totales
-- permitir múltiples medios de pago
-- impactar cuentas financieras
-- reflejar cuenta corriente del cliente
-
-### Atributos principales
-
-- `id`
-- `ventaId` (opcional)
-- `clienteId`
-- `fecha`
-- `importe`
-- `cuentaFinancieraId`
-- `medioPago`
-- `observacion`
-
----
+Cobro asociado a una venta o a saldo de arrastre del cliente.
+**Atributos:** `id`, `ventaId` (opcional), `clienteId`, `fecha`, `importe`, `cuentaFinancieraId`, `medioPago`, `observacion`.
 
 ## 5.5.5 OperacionConsignacion
 
-### Descripción
-
-Representa mercadería entregada en consignación, su venta posterior, devolución o liquidación.
-
-### Responsabilidades
-
-- registrar lo entregado en consignación
-- registrar lo vendido por el cliente o tercero
-- registrar lo devuelto
-- registrar lo pendiente de liquidación
-
-### Observaciones
-
-Aunque puede modelarse como extensión de Venta, se mantiene como concepto propio porque la lógica operativa es distinta.
+Mercadería entregada en consignación, su venta posterior, devolución y liquidación. Entidad **separada** de Venta porque su lógica operativa es distinta.
+**Responsabilidades:** registrar lo entregado, lo vendido por el consignatario, lo devuelto y lo pendiente de liquidación; estados de liquidación parcial/total.
 
 ---
 
@@ -724,332 +256,130 @@ Aunque puede modelarse como extensión de Venta, se mantiene como concepto propi
 
 ## 5.6.1 CuentaFinanciera
 
-### Descripción
-
-Representa una cuenta o canal de dinero del negocio.
-
-### Ejemplos
-
-- efectivo
-- Mercado Pago
-- banco
-- tarjeta
-- otra plataforma
-
-### Responsabilidades
-
-- registrar saldo actual
-- recibir y emitir movimientos
-- participar en cierres diarios
-
-### Atributos principales
-
-- `id`
-- `nombre`
-- `tipo`
-- `activa`
-
----
+Cuenta o canal de dinero (efectivo, Mercado Pago, banco, tarjeta, otra).
+**Atributos:** `id`, `nombre`, `tipo`, `activa`. Los saldos son visibles solo a Administrador/Dueño.
 
 ## 5.6.2 MovimientoCuenta
 
-### Descripción
+Variación monetaria en una cuenta. **Tipos:** cobro de venta, pago de compra, gasto, transferencia salida/entrada, separación a fondo, devolución desde fondo, ajuste de cierre.
+**Atributos:** `id`, `cuentaFinancieraId`, `fechaHora`, `tipo`, `importe`, `referenciaTipo`, `referenciaId`, `usuarioId`, `observacion`.
 
-Representa cualquier variación monetaria en una cuenta financiera.
+## 5.6.3 FondoSeparado y MovimientoFondo
 
-### Responsabilidades
+Dinero apartado del flujo del negocio. **FondoSeparado:** `id`, `nombre`, `saldoActual`, `responsable`, `observaciones`. **MovimientoFondo:** separación desde negocio, consumo del fondo, devolución al negocio.
+**Reglas:** separar dinero reduce los fondos del negocio; usar el fondo luego no impacta como gasto operativo.
 
-- registrar ingresos y egresos
-- vincular operaciones a cuentas
-- permitir auditoría y cierres
+## 5.6.4 Gasto
 
-### Tipos iniciales
+Egreso operativo del negocio. **Atributos:** `id`, `fecha`, `categoria`, `importe`, `cuentaOrigenId`, `observacion`. No se confunde con fondos separados; se reporta por categoría y cuenta.
 
-- cobro de venta
-- pago de compra
-- gasto
-- transferencia salida
-- transferencia entrada
-- separación a fondo
-- devolución desde fondo
-- ajuste de cierre
+## 5.6.5 CierreCaja
 
-### Atributos principales
-
-- `id`
-- `cuentaFinancieraId`
-- `fechaHora`
-- `tipo`
-- `importe`
-- `referenciaTipo`
-- `referenciaId`
-- `usuarioId`
-- `observacion`
+Cierre diario de una cuenta. **Atributos:** `id`, `fecha`, `cuentaFinancieraId`, `saldoTeorico`, `saldoReal`, `diferencia`, `usuarioId`, `observacion`.
 
 ---
 
-## 5.6.3 FondoSeparado
+# 5.7 Seguridad, roles y trazabilidad
 
-### Descripción
+## 5.7.1 Usuario y Rol
 
-Representa dinero apartado del flujo normal del negocio.
+Usuario interno autenticado. **Atributos:** `id`, `nombreUsuario`, `hashPassword`, `rol` (`DUENO` / `ADMINISTRADOR` / `EMPLEADO`), `activo`.
 
-### Responsabilidades
+**Matriz de permisos:**
 
-- registrar reservas o cuentas especiales
-- mostrar saldo actual
-- diferenciar estos fondos de gastos operativos
-
-### Atributos principales
-
-- `id`
-- `nombre`
-- `saldoActual`
-- `responsable`
-- `observaciones`
-
-### Reglas asociadas
-
-- separar dinero reduce los fondos del negocio
-- usar el fondo luego no impacta como gasto operativo del negocio
-
----
-
-## 5.6.4 MovimientoFondo
-
-### Descripción
-
-Representa ingresos y egresos dentro de un fondo separado.
-
-### Tipos iniciales
-
-- separación desde negocio
-- consumo del fondo
-- devolución al negocio
-
-### Atributos principales
-
-- `id`
-- `fondoSeparadoId`
-- `fechaHora`
-- `tipo`
-- `importe`
-- `usuarioId`
-- `observacion`
-
----
-
-## 5.6.5 Gasto
-
-### Descripción
-
-Representa un gasto operativo del negocio.
-
-### Responsabilidades
-
-- registrar egresos reales del negocio
-- clasificar por categoría
-- vincular cuenta de origen
-
-### Atributos principales
-
-- `id`
-- `fecha`
-- `categoria`
-- `importe`
-- `cuentaOrigenId`
-- `observacion`
-
-### Reglas asociadas
-
-- no debe confundirse con fondos separados
-- debe poder reportarse por categoría y cuenta
-
----
-
-## 5.6.6 CierreCaja
-
-### Descripción
-
-Representa el cierre diario de una cuenta financiera.
-
-### Responsabilidades
-
-- comparar saldo teórico y saldo real
-- detectar diferencias
-- dejar trazabilidad del cierre
-
-### Atributos principales
-
-- `id`
-- `fecha`
-- `cuentaFinancieraId`
-- `saldoTeorico`
-- `saldoReal`
-- `diferencia`
-- `usuarioId`
-- `observacion`
-
----
-
-# 5.7 Seguridad y trazabilidad
-
-## 5.7.1 Usuario
-
-### Descripción
-
-Representa un usuario interno autenticado del sistema.
-
-### Responsabilidades
-
-- acceder al sistema
-- ejecutar operaciones auditables
-- quedar asociado a movimientos y cierres
-
-### Atributos principales
-
-- `id`
-- `nombreUsuario`
-- `hashPassword`
-- `activo`
-
-### Observaciones
-
-En la primera etapa no se endurecerán permisos finos. Todos los empleados tendrán acceso operativo amplio.
-
----
+| Acción / visibilidad                        | Dueño | Administrador | Empleado |
+| ------------------------------------------- | :---: | :-----------: | :------: |
+| Mover stock entre depósitos (cantidades)    |  ✔   |      ✔       |   ✔     |
+| Ver costos de stock                         |  ✔   |      ✔       |   ✘     |
+| Resolver lote/costo de movimiento pendiente |  ✔   |      ✔       |   ✘     |
+| Facturar / registrar ventas                 |  ✔   |      ✔       |   ✔     |
+| Registrar el cobro/pago de la venta         |  ✔   |      ✔       |   ✔     |
+| Resolver utilidad pendiente de factura      |  ✔   |      ✔       |   ✘     |
+| Ver saldos de las cuentas / dinero          |  ✔   |      ✔       |   ✘     |
+| Cierre de caja                              |  ✔   |      ✔       |   ✘     |
+| Configuración general / usuarios            |  ✔   |    parcial    |   ✘     |
 
 ## 5.7.2 AuditoriaOperacion
 
-### Descripción
-
-Representa el registro histórico de acciones relevantes del sistema.
-
-### Responsabilidades
-
-- registrar qué operación se realizó
-- registrar quién la realizó
-- registrar cuándo se realizó
-- conservar referencia a la entidad afectada
-- permitir reconstrucción histórica
-
-### Atributos principales
-
-- `id`
-- `fechaHora`
-- `usuarioId`
-- `tipoOperacion`
-- `entidadAfectada`
-- `entidadId`
-- `resumenAntes` (opcional)
-- `resumenDespues` (opcional)
-- `motivo`
+Registro histórico de acciones relevantes. **Atributos:** `id`, `fechaHora`, `usuarioId`, `tipoOperacion`, `entidadAfectada`, `entidadId`, `resumenAntes` (opcional), `resumenDespues` (opcional), `motivo`.
 
 ---
 
 ## 6. Relaciones principales del dominio
 
-Las relaciones principales son:
-
-- un **Producto** tiene muchos **CostoProducto**
+- un **Producto** tiene muchos **CostoProducto/Lote**
 - un **Producto** tiene muchos **PrecioProducto**
-- una **EntidadComercial** tiene muchos **RolEntidad**
-- una **EntidadComercial** tiene muchos **Domicilio**
-- una **Compra** tiene muchos **ItemCompra**
-- una **Compra** tiene muchas **RecepcionCompra**
-- una **Compra** puede tener muchos **PagoCompra**
-- una **Venta** tiene muchos **ItemVenta**
-- una **Venta** puede tener muchas **EntregaVenta**
-- una **Venta** puede tener muchos **CobroVenta**
-- una **Venta** puede generar muchas **DeudaMercaderia**
+- una **ListaPrecios** tiene muchos **PrecioProducto** y muchos **clientes** asignados
+- una **EntidadComercial** tiene muchos **RolEntidad** y muchos **Domicilio**
+- una **EntidadComercial** puede tener muchas **DeudaCajas**
+- una **Compra** tiene muchos **ItemCompra**, muchas **RecepcionCompra** y muchos **PagoCompra**
+- una **RecepcionCompra** genera uno o más **Lote**
+- una **Venta** tiene muchos **ItemVenta**, una **EntregaVenta** (total) y muchos **CobroVenta**
+- un **MovimientoStock** puede referenciar un **Lote** y queda `FINALIZADO` o `PENDIENTE_COSTO`
 - una **CuentaFinanciera** tiene muchos **MovimientoCuenta**
 - un **FondoSeparado** tiene muchos **MovimientoFondo**
-- una **EntidadComercial** puede tener muchas **DeudaCajas**
-- un **Usuario** puede generar muchas **AuditoriaOperacion**
+- un **Usuario** genera muchas **AuditoriaOperacion**
 
 ---
 
 ## 7. Reglas de consistencia del dominio
 
-1. Ninguna operación crítica debe eliminarse físicamente.
-2. Toda anulación o reversión debe conservar trazabilidad.
-3. El stock solo puede cambiar por movimientos válidos.
+1. Ninguna operación crítica se elimina físicamente.
+2. Toda anulación o reversión conserva trazabilidad.
+3. El stock solo cambia por movimientos válidos.
 4. Una compra no aumenta stock hasta su recepción.
-5. Una venta no descuenta stock por lo que no fue entregado.
-6. La deuda de mercadería debe saldarse mediante entregas posteriores.
-7. Los precios actuales no deben modificar operaciones históricas.
-8. Los costos históricos deben conservarse.
-9. Los fondos separados no deben reportarse como gasto operativo.
-10. Las deudas monetarias, de mercadería y de cajas deben gestionarse por separado.
-11. Toda operación relevante debe registrar usuario, fecha y hora.
-12. El sistema debe diferenciar utilidad por ventas cerradas y utilidad por entregas reales.
+5. Una venta no descuenta stock por lo no entregado; la entrega es total y sale de Móvil.
+6. No se factura un producto sin stock en Móvil (no hay deuda de mercadería).
+7. Los precios actuales no modifican operaciones históricas; el precio aplicado se congela.
+8. Los costos se manejan por lote y se conservan; un movimiento con más de un lote queda pendiente hasta su resolución.
+9. La utilidad se calcula como venta − costo; al facturar queda pendiente hasta que Administrador/Dueño la resuelvan.
+10. Los fondos separados no se reportan como gasto operativo.
+11. Las deudas monetarias y de cajas se gestionan por separado.
+12. Toda operación relevante registra usuario, fecha y hora.
+13. La visibilidad de costos, saldos y utilidad está restringida por rol (no visible al Empleado).
 
 ---
 
 ## 8. Decisiones de modelado importantes
 
-### 8.1 Entidad comercial única
-
-Se adopta una entidad comercial general con múltiples roles.  
-No se modelan clientes, proveedores y terceros como mundos completamente separados.
-
-### 8.2 Venta y entrega son entidades distintas
-
-Una venta representa el acuerdo comercial.  
-Una entrega representa el movimiento físico real de mercadería.
-
-### 8.3 Compra y recepción son entidades distintas
-
-Una compra representa el acuerdo comercial.  
-Una recepción representa el retiro o ingreso real de stock.
-
-### 8.4 El costo usado al vender debe quedar congelado
-
-Las operaciones históricas no deben depender de costos o precios “actuales”.
-
-### 8.5 Las cajas retornables se controlan explícitamente
-
-No se modelan como simple observación.  
-Deben integrarse al stock total y a la deuda por tercero.
+- **8.1 Entidad comercial única** con múltiples roles (no mundos separados de cliente/proveedor/tercero).
+- **8.2 Venta y entrega** son entidades distintas, pero en el MVP la entrega es total al cerrar.
+- **8.3 Compra y recepción** son entidades distintas.
+- **8.4 Costo y precio congelados** en la operación; las históricas no dependen del catálogo actual.
+- **8.5 Costeo por lote** con resolución pendiente cuando hay ambigüedad de costo.
+- **8.6 Depósito Móvil** como única fuente de ventas.
+- **8.7 Cajas retornables** como producto especial sin costo, con control de total global y deuda por entidad.
+- **8.8 Utilidad única** (venta − costo) con cálculo diferido al facturar.
+- **8.9 Roles en el MVP** (Dueño/Administrador/Empleado) con visibilidad restringida de costos, saldos y utilidad.
 
 ---
 
 ## 9. Riesgos de modelado identificados
 
-### 9.1 Mezclar tipos de deuda
-
-Si se mezclan deuda monetaria, deuda de mercadería y deuda de cajas en una sola estructura, el sistema se vuelve ambiguo.
-
-### 9.2 No separar operación comercial de operación física
-
-Si venta y entrega se modelan como lo mismo, se rompe la lógica de stock y deuda de mercadería.
-
-### 9.3 No congelar precios y costos en operaciones
-
-Si una venta depende del catálogo actual en vez de snapshots históricos, se pierde trazabilidad.
-
-### 9.4 Tratar cajas retornables como comentario
-
-Si las cajas se registran solo en texto libre, no habrá control real ni conciliación confiable.
+- **9.1** Mezclar deuda monetaria y de cajas en una sola estructura genera ambigüedad.
+- **9.2** No separar operación comercial de física rompe la lógica de stock.
+- **9.3** No congelar precios/costos en operaciones pierde trazabilidad.
+- **9.4** Tratar cajas retornables como comentario impide su control real.
+- **9.5** No resolver a tiempo movimientos `PENDIENTE_COSTO` o ventas con utilidad pendiente deja reportes de costo/utilidad incompletos.
 
 ---
 
 ## 10. Puntos abiertos para futuras etapas
 
-Estos puntos no bloquean la primera etapa, pero pueden requerir extensión del modelo en el futuro:
-
-- permisos refinados por usuario
+- permisos más finos dentro de cada rol
 - tipos distintos de cajas retornables
 - integración fiscal/legal con AFIP/ARCA
 - soporte móvil
-- analítica avanzada
-- reglas más sofisticadas de sugerencia de precios
-- reportes contables adicionales
+- analítica avanzada y reglas más sofisticadas de sugerencia de precios
+- reincorporación eventual de venta con entrega parcial / deuda de mercadería
 
 ---
 
 ## 11. Historial de cambios
 
-| Versión | Fecha      | Cambio                                              |
-| ------- | ---------- | --------------------------------------------------- |
-| 1.0     | 2026-04-04 | Creación inicial del documento de modelo de dominio |
+| Versión | Fecha      | Cambio                                                                                                                                                              |
+| ------- | ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1.0     | 2026-04-04 | Creación inicial del documento de modelo de dominio.                                                                                                               |
+| 1.1     | 2026-06-22 | Alineación con especificaciones v1.1: app web, roles, depósito Móvil, lotes de costo y movimientos/utilidad pendientes, lista de precios, eliminación de deuda de mercadería, caja retornable como producto especial. |
+</content>
+</invoke>
