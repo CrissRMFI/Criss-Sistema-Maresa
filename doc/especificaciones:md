@@ -1,0 +1,254 @@
+# Especificación Inicial de Requisitos
+
+## Sistema de Gestión Comercial y Operativa para Negocio de Bebidas y Mercadería
+
+| **Documento base para análisis, diseño y desarrollo** |                                                                    |
+| ----------------------------------------------------- | ------------------------------------------------------------------ |
+| **Versión del documento**                             | 1.0                                                                |
+| **Estado**                                            | Borrador                                                           |
+| **Uso previsto**                                      | Proyecto interno / base para implementación                        |
+| **Ámbito**                                            | Aplicación de escritorio con backend central y acceso por internet |
+| **Alcance inicial**                                   | Operacion interna                                                  |
+
+---
+
+## 0. Control de versiones y cambios
+
+Este documento debe versionarse desde el inicio. Si un requisito cambia y ese cambio no queda registrado, se pierde contexto, trazabilidad y capacidad de auditar decisiones. Para evitarlo, se adopta un control de cambios doble: versión del documento y registro explícito de requisitos impactados.
+
+- Los identificadores de requisitos (RN, RF y RNF) son estables y no deben reutilizarse.
+- Los cambios de redacción menores o aclaraciones incrementan la versión menor del documento (por ejemplo, 1.0 a 1.1).
+- Los cambios de alcance o significado de un requisito deben registrarse en la tabla de cambios, indicando impacto, motivo y versión.
+- Si un requisito se reemplaza, el identificador original debe quedar referenciado como reemplazado, nunca reciclado como si nada hubiera pasado.
+- Si en el futuro el volumen crece, convendrá agregar una matriz específica de historial por requisito o una línea base por iteración.
+
+| Versión | Fecha      | Tipo de cambio           | Requisitos impactados | Descripción             |
+| ------- | ---------- | ------------------------ | --------------------- | ----------------------- |
+| 1.0     | 2026-04-04 | Normalización documental | Documento base        | Uniformización general. |
+
+---
+
+## 1. Propósito del documento
+
+Este documento consolida los requisitos iniciales para una aplicación de escritorio orientada a la gestión comercial, operativa y de control interno de un negocio de mercadería y bebidas. Su propósito es fijar una base común para análisis, diseño, construcción y validación del sistema, reduciendo ambigüedades sobre ventas, entregas, compras, stock, cuentas y reportes.
+
+## 2. Objetivo del sistema
+
+El sistema debe centralizar la operación diaria del negocio en un único entorno digital, permitiendo controlar stock, compras, ventas, cuentas, gastos, clientes, proveedores, fondos especiales y reportes, con trazabilidad completa y acceso compartido desde al menos dos computadoras.
+
+## 3. Alcance
+
+El alcance inicial contempla uso interno, sin integración con AFIP/ARCA ni facturación legal electrónica. La solución estará compuesta por una aplicación de escritorio para los usuarios y un backend central con conexión obligatoria a internet para garantizar consistencia de datos entre equipos.
+
+- **Incluido en el alcance inicial:** gastos diarios, clientes, proveedores, productos, stock por ubicación, compras, ventas, consignación, cuentas de dinero, fondos separados, cajas retornables, auditoría y reportes.
+- **Fuera del alcance inicial:** integración fiscal/legal con AFIP/ARCA, trabajo offline con sincronización posterior y restricción detallada de permisos por rol.
+
+## 4. Actores
+
+| Actor               | Descripción                                         | Responsabilidades iniciales                                                                                    |
+| ------------------- | --------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| Administrador       | Propietario del negocio. Control total del sistema. | Alta y seguimiento de operaciones, consulta de reportes, cierre de caja, auditoría y configuración general.    |
+| Empleado            | Usuario interno operativo.                          | Carga y consulta de compras, ventas, movimientos y cierres. En la primera etapa tendrá libertad amplia de uso. |
+| Cliente             | Tercero gestionado por el sistema.                  | Recibe ventas, puede tener deuda monetaria, deuda de mercadería y varios domicilios.                           |
+| Proveedor / tercero | Entidad externa con uno o más roles.                | Puede vender mercadería, actuar como depósito, deber o ser acreedor en dinero, mercadería y cajas retornables. |
+
+## 5. Definiciones operativas y glosario
+
+- **Venta interna:** registro comercial de una operación, independiente de la factura fiscal/legal.
+- **Entrega:** despacho físico de mercadería al cliente o tercero.
+- **Recibo:** registro del cobro de una venta o de un pago recibido.
+- **Factura legal:** comprobante fiscal ante AFIP/ARCA. No forma parte del alcance inicial.
+- **Saldo de arrastre:** deuda monetaria de operaciones anteriores que permanece abierta y se acumula para futuras ventas o cobros.
+- **Deuda de mercadería:** mercadería pendiente de entregar a un cliente luego de una venta cerrada.
+- **Deuda de cajas:** cantidad de cajas retornables pendientes de devolución por parte de un cliente, proveedor o tercero.
+- **Fondos separados / cuentas especiales:** dinero que se aparta del flujo del negocio. La separación reduce fondos del negocio, pero el uso posterior del fondo no se considera gasto operativo del negocio.
+- **Ubicación de stock:** local, depósito, consignación u otra ubicación física o lógica definida por el negocio.
+
+## 6. Suposiciones y decisiones de negocio ya definidas
+
+- El sistema será de uso interno.
+- Debe soportar como mínimo dos PCs trabajando sobre la misma base central.
+- No se trabajará con modo offline en la etapa inicial.
+- No se borrarán movimientos; toda anulación o reversión debe quedar auditada.
+- En la primera etapa, todos los empleados podrán realizar todas las operaciones; el endurecimiento de permisos se evaluará una vez estabilizada la aplicación.
+- Todas las cajas retornables se consideran del mismo tipo.
+- Los productos pueden quedar inactivos sin borrarse del sistema.
+
+## 7. Modelo conceptual resumido
+
+El sistema se apoya en tres ejes centrales:
+
+- **Mercadería y stock:** productos, costos, precios, ubicaciones, compras, ventas, traslados, consignación, devoluciones, ajustes y cajas retornables.
+- **Dinero y cuentas:** efectivo, billeteras virtuales, bancos, tarjetas y cuentas especiales, con cierres diarios y diferencias entre saldo teórico y real.
+- **Relaciones comerciales:** clientes, proveedores y terceros con cuentas corrientes que pueden incluir deuda en dinero, mercadería y cajas.
+
+## 8. Reglas de negocio
+
+| Código | Regla                                                                                                                                                                                    |
+| ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| RN-01  | Toda venta, compra, ajuste, anulación, traslado, devolución, consignación o cierre debe quedar registrado con trazabilidad.                                                              |
+| RN-02  | Los productos se identifican por nombre, marca y presentación.                                                                                                                           |
+| RN-03  | Un mismo producto puede tener múltiples costos históricos, incluso en el mismo día.                                                                                                      |
+| RN-04  | El usuario podrá elegir desde qué costo vender cuando corresponda.                                                                                                                       |
+| RN-05  | El sistema conservará historial de costos y permitirá consultar promedio simple de costos por producto.                                                                                  |
+| RN-06  | El sistema sugerirá precios de venta vigentes, pero el usuario podrá modificarlos al operar.                                                                                             |
+| RN-07  | Los precios actualizados afectan la sugerencia futura; no reescriben operaciones históricas ya registradas.                                                                              |
+| RN-08  | Una venta puede pagarse con múltiples medios de pago.                                                                                                                                    |
+| RN-09  | Al anular una venta, el sistema debe revertir stock, pagos, deuda asociada y ganancia, dejando auditoría.                                                                                |
+| RN-10  | Las ventas pueden cerrar con entrega parcial o pendiente; la deuda de mercadería debe quedar asociada al cliente y visible en un listado específico.                                     |
+| RN-11  | Si una venta está cerrada y existe mercadería entregada, la utilidad por ventas cerradas podrá computarse según el criterio operativo del negocio aun cuando reste mercadería pendiente. |
+| RN-12  | Si no existe mercadería en ningún depósito para respaldar una venta pendiente, la utilidad solo se computará sobre la mercadería efectivamente entregada.                                |
+| RN-13  | La deuda de mercadería se salda mediante una entrega posterior vinculada al cliente.                                                                                                     |
+| RN-14  | El stock se descuenta únicamente por la mercadería efectivamente entregada; la mercadería pendiente no sale de un depósito hasta su entrega.                                             |
+| RN-15  | Las compras, recepciones/retiros y pagos son eventos distintos y pueden ocurrir parcial o totalmente en momentos diferentes.                                                             |
+| RN-16  | Una compra no incrementa stock hasta que la mercadería sea retirada/recibida.                                                                                                            |
+| RN-17  | Si una compra es parcial, la parte no retirada queda pendiente de retiro.                                                                                                                |
+| RN-18  | Clientes, proveedores y terceros pueden registrar deudas separadas en dinero, mercadería y cajas retornables.                                                                            |
+| RN-19  | Las cajas retornables forman parte del stock del negocio y, cuando no están físicamente presentes, se contabilizan como deuda de cajas de terceros.                                      |
+| RN-20  | Los fondos separados salen del negocio al ser apartados, pero sus consumos posteriores no se computan como gasto operativo del negocio.                                                  |
+| RN-21  | El sistema deberá distinguir entre utilidad por ventas cerradas y utilidad por mercadería realmente entregada.                                                                           |
+
+## 9. Requisitos funcionales
+
+### 9.1 Gestión de productos y precios
+
+| Código | Regla                                                                                                                              |
+| ------ | ---------------------------------------------------------------------------------------------------------------------------------- |
+| RF-01  | El sistema deberá permitir crear, editar, inactivar y consultar productos.                                                         |
+| RF-02  | El sistema deberá registrar marca, presentación y unidad base de manejo por producto.                                              |
+| RF-03  | El sistema deberá permitir asociar múltiples costos históricos a un mismo producto.                                                |
+| RF-04  | El sistema deberá permitir registrar múltiples precios de venta por producto y sugerir el precio vigente según contexto comercial. |
+| RF-05  | El sistema deberá permitir modificar manualmente el precio sugerido durante la venta.                                              |
+| RF-06  | El sistema deberá mostrar historial de costos y precios por producto.                                                              |
+
+### 9.2 Clientes, proveedores y terceros
+
+| Código | Regla                                                                                                                                 |
+| ------ | ------------------------------------------------------------------------------------------------------------------------------------- |
+| RF-07  | El sistema deberá registrar clientes con nombre, teléfono, dirección, varios domicilios, lista de precios, deuda y límite de crédito. |
+| RF-08  | El sistema deberá emitir alerta cuando un cliente supere su límite de crédito, sin bloquear la operación.                             |
+| RF-09  | El sistema deberá permitir consultar cuenta corriente, historial de movimientos, pagos y saldos de arrastre por cliente.              |
+| RF-10  | El sistema deberá registrar proveedores y terceros con capacidad de mantener deudas en dinero, mercadería y cajas.                    |
+| RF-11  | Una misma entidad deberá poder cumplir múltiples roles comerciales dentro del sistema.                                                |
+
+### 9.3 Stock y ubicaciones
+
+| Código | Regla                                                                                                            |
+| ------ | ---------------------------------------------------------------------------------------------------------------- |
+| RF-12  | El sistema deberá manejar stock por ubicación, incluyendo como mínimo local, depósito y consignación.            |
+| RF-13  | El sistema deberá registrar movimientos de stock por compra, venta, ajuste, traslado, devolución y consignación. |
+| RF-14  | El sistema deberá permitir ajustes manuales de stock.                                                            |
+| RF-15  | El sistema deberá permitir definir stock mínimo y generar alertas por stock bajo.                                |
+| RF-16  | El sistema deberá soportar conteo físico y comparación entre stock teórico y stock real.                         |
+| RF-17  | El sistema deberá registrar y controlar stock de cajas retornables por separado del resto de la mercadería.      |
+
+### 9.4 Compras y recepción
+
+| Código | Regla                                                                                                                           |
+| ------ | ------------------------------------------------------------------------------------------------------------------------------- |
+| RF-18  | El sistema deberá registrar compras con proveedor, fecha, productos, cantidades, costo unitario, forma de pago y observaciones. |
+| RF-19  | El sistema deberá permitir que una compra quede pendiente de retiro total o parcial.                                            |
+| RF-20  | El sistema deberá registrar recepciones parciales o totales y aumentar stock únicamente por lo recibido.                        |
+| RF-21  | El sistema deberá permitir registrar deudas con proveedores cuando la compra no esté totalmente pagada.                         |
+| RF-22  | El sistema deberá registrar mercadería dañada o no apta dentro de una compra.                                                   |
+
+### 9.5 Ventas, entrega y consignación
+
+| Código | Regla                                                                                                                                |
+| ------ | ------------------------------------------------------------------------------------------------------------------------------------ |
+| RF-23  | El sistema deberá registrar ventas internas con uno o más productos y múltiples medios de pago.                                      |
+| RF-24  | El sistema deberá descontar stock únicamente por la cantidad efectivamente entregada.                                                |
+| RF-25  | El sistema deberá permitir cerrar una venta aunque exista mercadería pendiente de entrega.                                           |
+| RF-26  | El sistema deberá registrar la deuda de mercadería resultante por cliente y mantener un listado específico de pendientes de entrega. |
+| RF-27  | El sistema deberá permitir saldar la deuda de mercadería mediante entregas posteriores sin crear una nueva venta independiente.      |
+| RF-28  | El sistema deberá registrar remitos y recibos como comprobantes internos.                                                            |
+| RF-29  | El sistema deberá soportar ventas en consignación, registrando mercadería entregada, vendida, devuelta y pendiente de liquidación.   |
+| RF-30  | El sistema deberá permitir anular ventas con reversión completa y auditoría.                                                         |
+
+### 9.6 Cuentas, caja, fondos y gastos
+
+| Código | Regla                                                                                                                                                   |
+| ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| RF-31  | El sistema deberá manejar múltiples cuentas financieras, incluyendo efectivo, Mercado Pago, bancos, tarjetas y otras plataformas.                       |
+| RF-32  | El sistema deberá mostrar saldo por cuenta en tiempo real.                                                                                              |
+| RF-33  | El sistema deberá registrar transferencias entre cuentas.                                                                                               |
+| RF-34  | El sistema deberá permitir cierre diario de caja por cuenta.                                                                                            |
+| RF-35  | El sistema deberá registrar diferencias entre saldo teórico y saldo real.                                                                               |
+| RF-36  | El sistema deberá registrar gastos diarios por categoría y cuenta de origen.                                                                            |
+| RF-37  | El sistema deberá manejar fondos separados con saldo actual, responsable, ingresos, egresos y observaciones.                                            |
+| RF-38  | El sistema deberá reflejar que la separación de dinero reduce fondos del negocio y que el uso posterior de esos fondos no impacta como gasto operativo. |
+
+### 9.7 Reportes y consulta
+
+| Código | Regla                                                                                                                                                |
+| ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| RF-39  | El sistema deberá ofrecer reportes de stock actual, stock valorizado, ventas, compras, gastos, cuentas, clientes, proveedores, consignación y cajas. |
+| RF-40  | El sistema deberá ofrecer dos vistas de utilidad: utilidad por ventas cerradas y utilidad por mercadería realmente entregada.                        |
+| RF-41  | El usuario deberá poder seleccionar explícitamente el criterio de utilidad a visualizar.                                                             |
+| RF-42  | El sistema deberá mostrar pendientes de entrega, saldos de arrastre y deudas asociadas junto con los reportes pertinentes.                           |
+| RF-43  | El sistema deberá permitir exportar reportes a PDF.                                                                                                  |
+
+### 9.8 Auditoría y seguridad operativa
+
+| Código | Regla                                                                                                            |
+| ------ | ---------------------------------------------------------------------------------------------------------------- |
+| RF-44  | El sistema deberá registrar usuario, fecha y hora en toda operación relevante.                                   |
+| RF-45  | El sistema no deberá eliminar físicamente movimientos operativos.                                                |
+| RF-46  | El sistema deberá conservar historial de anulaciones, reversiones y diferencias detectadas en cierres y conteos. |
+| RF-47  | El sistema deberá permitir autenticación de usuarios internos.                                                   |
+
+## 10. Estados principales del sistema
+
+| Objeto                   | Estados previstos                                                                                                         | Observaciones                                                                 |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| Venta                    | Borrador, cerrada, entregada parcial, entregada completa, anulada, en consignación, liquidada parcial, liquidada completa | La venta y la entrega no son equivalentes; puede existir deuda de mercadería. |
+| Compra                   | Registrada, pendiente de retiro, recibida parcial, recibida total, pagada parcial, pagada total, anulada                  | Compra, recepción y pago son independientes.                                  |
+| Cuenta corriente cliente | Activa, con saldo de arrastre, saldada                                                                                    | Debe mostrar deuda monetaria e historial de pagos.                            |
+| Deuda de cajas           | Abierta, parcial, saldada                                                                                                 | Afecta stock total de cajas retornables del negocio.                          |
+
+## 11. Requisitos no funcionales
+
+| Código | Requisito                                                                                                                 |
+| ------ | ------------------------------------------------------------------------------------------------------------------------- |
+| RNF-01 | La solución deberá soportar trabajo concurrente desde al menos dos PCs.                                                   |
+| RNF-02 | La solución deberá operar con backend central y conexión obligatoria a internet en su primera etapa.                      |
+| RNF-03 | La interfaz deberá ser adecuada para uso diario operativo, con acceso rápido a ventas, compras, cuentas y stock.          |
+| RNF-04 | El sistema deberá priorizar consistencia de datos por sobre soporte offline.                                              |
+| RNF-05 | El sistema deberá contar con respaldo periódico, con frecuencia mínima semanal.                                           |
+| RNF-06 | El sistema deberá permitir recuperación lógica de operaciones mediante anulación/reversión sin pérdida de auditoría.      |
+| RNF-07 | La información crítica del negocio deberá mantenerse protegida mediante autenticación y almacenamiento centralizado.      |
+| RNF-08 | El sistema deberá generar respuestas suficientemente ágiles para operación diaria en mostrador y administración.          |
+| RNF-09 | La arquitectura deberá quedar preparada para incorporar una futura aplicación móvil reutilizando backend y base de datos. |
+| RNF-10 | La arquitectura deberá contemplar futura integración fiscal, aunque dicha integración esté fuera del alcance inicial.     |
+
+## 12. Restricciones y decisiones de implementación
+
+- La aplicación inicial será de escritorio, pero con backend central reutilizable para una futura app móvil.
+- No habrá integración con AFIP/ARCA en la primera etapa.
+- No habrá modo offline en la primera etapa.
+- Los permisos avanzados no se endurecerán inicialmente; se revisarán luego de estabilizar la operación real.
+
+## 13. Prioridades del MVP
+
+| Prioridad      | Módulos                                                                             |
+| -------------- | ----------------------------------------------------------------------------------- |
+| Imprescindible | Registro diario, cuentas, stock, compras y ventas.                                  |
+| Alta           | Clientes, proveedores, cierres de caja, reportes básicos y auditoría.               |
+| Media          | Consignación, deuda de mercadería, deuda de cajas y reportes avanzados de utilidad. |
+| Posterior      | Permisos refinados, móvil, integración fiscal/legal y mejoras analíticas.           |
+
+## 14. Riesgos y puntos de atención
+
+- La coexistencia de utilidad por ventas cerradas y utilidad por entregas reales exige que el criterio activo se mustre siempre en forma explícita para evitar interpretaciones erróneas.
+- La mezcla de deuda monetaria, deuda de mercadería y deuda de cajas requiere pantallas y reportes bien separados para evitar confusión operativa.
+- Permisos amplios en la etapa inicial aumentan la necesidad de auditoría robusta.
+- La ausencia de modo offline obliga a cuidar la disponibilidad del backend y la conectividad del lugar de trabajo.
+
+## 15. Anexo: preguntas resueltas durante el taller
+
+- El negocio trabajará sin stock comprometido ni reservas formales.
+- La mercadería pendiente quedará separada por cliente y en un listado específico.
+- Las cajas retornables se manejarán como stock propio y como deuda de terceros cuando corresponda.
+- Si una compra está pagada pero no retirada, el stock no aumenta hasta la recepción.
+- Las deudas con terceros se gestionarán por separado en dinero, mercadería y cajas.
+- Los saldos de arrastre representan deudas monetarias de operaciones anteriores no saldadas por completo.
